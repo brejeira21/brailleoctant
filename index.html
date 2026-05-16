@@ -1,67 +1,789 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Braille Octant</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <canvas id="canvas"></canvas>
-    <textarea id="ta" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false"></textarea>
-    <div id="chat">
-        <div id="coords">X: 0 Y: 0</div>
-        <div id="chatbox"></div>
-        <input id="chatbar" maxlength="500" type="text"><button id="send">Send</button>
-    </div>
-    <div id="menu">
-        <button id="togglestyles">Styles</button>
-        <div id="styles" style="display: none;">
-            Background: <input id="style_bg" type="color" value="#ffffff"><br>
-            Protection background: <input id="style_prot_bg" type="color" value="#abcdef"><br>
-            Queued: <input id="style_queue" type="color" value="#e4abef"><br>
-            Default text: <input id="style_text" type="color" value="#000000"><br>
-            Protected text: <input id="style_prot_text" type="color" value="#000000"><br>
-            Cursor: <input id="style_cursor" type="color" value="#ffff00"><br>
-            Other cursor: <input id="style_guest_cursor" type="color" value="#d1d17d"><br>
-            Protect (admin only): <input id="style_prot" type="color" value="#abefab"><br>
-            Unprotect (admin only): <input id="style_unprot" type="color" value="#ef8989"><br>
-        </div>
-        <button id="placeholder">Placeholder</button>
-        <label><input id="grid" type="checkbox">Grid</label>
-        <input id="zoom" type="range" min="0" max="12" value="4">
-        <input id="nickname" type="text" placeholder="nickname" maxlength="20">
-        <div id="admin_panel" style="display: none;">
-            <button id="download">Download</button>
-            <button id="import">Import</button>
-            <button id="protect">Protect</button>
-            Rate limit:
-            <input id="amount" type="number" min="0" max="500">
-            per
-            <input id="per" type="number" min="0" max="3600000">
-            <label><input id="cep" type="checkbox">Anyone can edit placeholders</label>
-            <label><input id="cc" type="checkbox">Anyone can chat</label>
-            <textarea id="importinput" style="display: none; width: 400px; height: 300px;"></textarea><br>
-            <button id="toggle_admin_logs">Logs</button>
-            <div id="admin_logs" style="display: none;">
-                <div id="logs"></div>
-                <button id="iplist">Get ip list</button><br>
-                <input id="iptodo" type="text"><br>
-                <button id="actionmute">Mute</button>
-                <button id="actionunmute">Unmute</button>
-                <button id="actioncanvasmute">Canvas mute</button>
-                <button id="actioncanvasunmute">Canvas unmute</button>
-                <!--<button>Ban</button>
-                <button>Unban</button>-->
-            </div>
-        </div>
-        <div id="placeholderopts" style="display: none;">
-            link id:
-            <input id="placeholderlink" type="text">
-        </div>
-    </div>
-    <button id="done" style="display: none;">Done</button>
-    <dialog id="modal">Connecting</dialog>
-    <script src="script.js"></script>
-</body>
+	<head>
+		<title>Braille Octant</title>
+		<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+		<link rel="shortcut icon" type="image/png" href="https://brejeira21.github.io/brailleoctantsite/static/favicon.png">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+		<meta name="description" content="Infinitely large website. Write anywhere.">
+		<meta property="og:image" content="https://api.websim.com/blobs/019df0e7-2b15-752c-bbd0-d39680d9e944.png">
+		<link type="text/css" rel="stylesheet" href="https://brejeira21.github.io/brailleoctantsite/static/css/yourworld.css">
+		<style>
+			@font-face {
+				font-family: 'Braille Octant Mono 2.4';
+				src: url('https://cdn.jsdelivr.net/gh/brejeira21/Braille-Octant-Mono-Version-2.4-@main/BrailleOctantMono2.4.ttf') format('truetype');
+			}
+		</style>
+	</head>
+	<body>
+		<div id="main_view">
+			<canvas id="textwall" class="screen_canvas" style="display: none;"></canvas>
+		</div>
+		<a href="javascript: void 0;" id="link_element" title="Link to url..." target="_blank" style="cursor: pointer;">
+			<div id="link_div"></div>
+		</a>
+		<div id="topbar" class="ui">
+			<div id="topbar_inner">
+				<div id="announce_container"></div>
+				<div class="menu-corner">
+					<div id="menu_corner_area"></div>
+					<span id="menu" class="ui-vis tab" style="display: none;">
+						<img src="https://brejeira21.github.io/brailleoctantsite/static/pin.svg" class="menuPin" style="display: none;">
+						<span class="menuText">Full Script</span>
+						<span style="font-size:50%">▼</span>
+					</span>
+				</div>
+			</div>
+		</div>
+		<div id="nav" class="ui menu ui-vis" style="display: none;">
+			<ul></ul>
+		</div>
+		<div id="coords" class="ui ui-vis" style="display: none;">
+			X: <span id="coord_X"></span>
+			Y: <span id="coord_Y"></span>
+			<div id="cursor_coords" style="display: none;">
+				Cursor:
+				<span id="cursor_on" style="display: none;">
+					<span id="tile_X"></span>, <span id="tile_Y"></span> /
+					<span id="char_X"></span>, <span id="char_Y"></span>
+				</span>
+				<span id="cursor_off" style="display: none">
+					N/A
+				</span>
+			</div>
+		</div>
+
+		<div id="modal_overlay" style="display: none;"></div>
+		<div id="link_tooltip" class="tooltip" style="display: none;"></div>
+
+		<h1 id="loading">Loading...</h1>
+		<div style="display:none"><input type="hidden" name="csrfmiddlewaretoken" value="d01d8f657f4201b300a012ea8040b8c5952ec341" /></div>
+		<script>
+			var state = {"userModel":{"username":"miguel0303","is_superuser":false,"authenticated":true,"is_member":true,"is_owner":true,"is_staff":false,"is_operator":false},"worldModel":{"feature_membertiles_addremove":true,"writability":0,"feature_url_link":0,"feature_go_to_coord":0,"name":"brailleoctantsite","feature_paste":0,"readability":0,"feature_coord_link":0,"pathname":"/brailleoctantsite","chat_permission":0,"color_text":0,"color_cell":0,"quick_erase":1,"show_cursor":0,"char_rate":[20480,1000],"write_interval":1000,"no_copy":false,"no_chat_global":false,"color_palette":null,"bg_color_palette":null,"default_script_path":"brailleoctantsite/static/files/brailleoctantrenderer.js"}};
+		</script>
+
+		<textarea autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" style="left: -1000px; top: -1000px; position: absolute;" id="textInput"></textarea>
+
+		<div id="west_gui">
+			<div id="text_decorations" style="display: none">
+				<div class="text_deco_btn" id="text_deco_b" title="Bold">A</div>
+				<div class="text_deco_btn" id="text_deco_i" title="Italic">A</div>
+				<div class="text_deco_btn" id="text_deco_u" title="Underline">A</div>
+				<div class="text_deco_btn" id="text_deco_s" title="Strikethrough">A</div>
+			</div>
+			<br>
+			<div id="erase_region" style="display: none">
+				<div style="padding-bottom: 3px; font-weight: bold; text-align: center;">
+					Erase region
+				</div>
+				<label style="display: block;">
+					<input type="radio" name="erase_region_opt" id="erase_region_once" checked> Only once
+				</label>
+				<label style="display: block;">
+					<input type="radio" name="erase_region_opt" id="erase_region_mult"> Multiple
+				</label>
+				<label style="display: block;">
+					<input type="radio" name="erase_region_opt" id="erase_region_ctrl"> Hold Ctrl
+				</label>
+				<hr>
+				<label style="display: block;">
+					<input type="checkbox" id="erase_region_snap"> Snap to grid
+				</label>
+				<a id="erase_region_cancel" onclick="stopEraseUI();">Cancel</a>
+			</div>
+			<div id="protect_precision" style="display: none;">
+				<div style="padding-bottom: 3px;">
+					Protect type:
+				</div>
+				<div class="protect_button" id="tile_choice" onclick="protectPrecisionOption(0);">
+					Tile
+				</div>
+				<div class="protect_button" id="char_choice" onclick="protectPrecisionOption(1);">
+					Char
+				</div>
+				<a id="protect_selection" onclick="protectSelection();">Select</a>
+			</div>
+			<div id="auto_prog" class="auto_prog_panel" style="display: none"></div>
+		</div>
+
+		<div id="chat_open" class="ui-vis ui" style="display: none;">
+			<span>Chat<b id="total_unread" class="unread" style="display: none;">(-)</b></span>
+		</div>
+		<div id="chat_window" style="width: 400px; height: 300px; bottom: 0px; left: 0px; display: none;">
+			<div id="chat_upper" style="padding: 3px; padding-bottom: 0px;">
+				<div class="chat_tab_button chat_tab_selected" id="chat_page_tab">
+					This page<b id="page_unread" class="unread" style="display: none;">(-)</b>
+				</div><div class="chat_tab_button" id="chat_global_tab">
+					Global<b id="global_unread" class="unread" style="display: none;">(-)</b>
+				</div>
+				<span id="usr_online"></span>
+				<div id="chat_close" class="close_button">X</div>
+			</div>
+			<div class="chatfield" id="page_chatfield"></div>
+			<div class="chatfield" id="global_chatfield" style="display: none;"></div>
+			<div id="chat_lower" style="width: 100%; display: flex;">
+				<input style="width: 100%; margin: 3px; margin-right: 0px;" id="chatbar" autocomplete="off" aria-autocomplete="list">
+				<button id="chatsend" style="margin: 3px;">Send</button>
+			</div>
+		</div>
+		<div id="confirm_js" style="display: none; top: 50px; left: 100px;">
+			<a href="javascript:void 0;" id="run_js_confirm">run</a>
+			<span id="confirm_js_msg">
+				--
+			</span>
+			<span id="confirm_js_code">
+				--
+			</span>
+			<a href="javascript:void 0;" id="confirm_js_copy">copy</a>
+			<div id="confirm_js_cancel">
+				Close
+			</div>
+			<div id="confirm_js_cancel_x">
+				X
+			</div>
+		</div>
+
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/helpers.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/lib/jscolor.min.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/modals.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/menu.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/permissions.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/chat.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/renderer.js"></script>
+		<script src="https://brejeira21.github.io/brailleoctantsite/static/yw/javascript/owot.js"></script>
+	</body>
 </html>
+<style>
+* {
+	margin: 0;
+	padding: 0;
+}
+html, body {
+	overflow: hidden;
+	width: 100%;
+	height: 100%;
+	overscroll-behavior: contain;
+	touch-action: pan-down;
+	-webkit-touch-callout: none;
+	font-family: 'Braille Octant Mono 2.4', Verdana, sans-serif;
+}
+#main_view {
+	position: relative;
+	overflow: hidden;
+}
+.screen_canvas {
+	overflow: hidden;
+	user-select: none;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+}
+body {
+	background: #ccc;
+}
+img {
+	border: 0;
+	text-decoration: none;
+}
+a,
+a:link,
+a:hover,
+a:active,
+a:visited {
+	text-decoration: none;
+	color: inherit;
+}
+.announce_text {
+	text-align: center;
+	margin-right: 3px;
+	background-color: rgb(181 181 241);
+	border-radius: 5px;
+	color: #525252;
+	padding-left: 7px;
+	padding-right: 7px;
+	font-weight: bold;
+}
+.announce_text > a {
+	text-decoration: underline;
+	color: blue;
+}
+.announce_text > a:hover {
+	color: #f1d94a;
+}
+#topbar {
+	position: absolute;
+	top: 0;
+	width: 100%;
+}
+#topbar_inner {
+	width: 100%;
+	position: absolute;
+}
+#announce_container {
+	text-align: center;
+}
+.announce_close {
+	font-size: 11px;
+	font-weight: bold;
+	color: #636060;
+	background-color: #C5C2C2;
+	border-radius: 2px;
+	padding: 0 3px;
+	position: relative;
+	z-index: 1;
+}
+.announce_close:hover {
+	background: #928E8E;
+	color: white;
+	cursor: pointer;
+}
+.ui {
+	color: #888;
+	font-family: 'Braille Octant Mono 2.4', Verdana, sans-serif;
+	font-size: 12px;
+	z-index: 100;
+}
+.ui-vis {
+	background-color: rgba(0, 0, 255, .1);
+	padding: 2px;
+}
+.tab {
+	padding-top: 0;
+}
+.corner-tab:hover {
+	background-color: #CCCCFF;
+	cursor: default;
+}
+.corner-tab:active {
+	color: white;
+	background-color: #B2B2FF;
+}
+.menu-corner {
+	position: absolute;
+	/* top: 0px; */
+	right: 0px;
+	display: flex;
+	gap: 4px;
+}
+.message {
+	margin-left: auto;
+	margin-right: auto;
+	padding: 5px 0px;
+	width: 60%;
+	text-align: center;
+	background: #E5E5FF;
+	color: #333;
+}
+.message a {
+	color: blue;
+}
+#loading {
+	font-family: 'Braille Octant Mono 2.4', Verdana, sans-serif;
+}
+#coords {
+	position: absolute;
+	bottom: 0;
+	right: 0;
+	color: #555;
+	background: #E5E5FF;
+	cursor: pointer;
+}
+.menu {
+	right: 0;
+}
+#menu {
+	cursor: pointer;
+	box-sizing: border-box;
+}
+#menu.hover {
+	color: #555;
+	background: #E5E5FF;
+	border-left: 1px solid #ccc;
+}
+#nav {
+	position: absolute;
+	text-align: right;
+	top: 1.5em;
+	background: #E5E5FF;
+	width: 8em;
+	color: #555;
+	border-left: 1px solid #ccc;
+	border-bottom: 1px solid #ccc;
+	overflow: hidden;
+	max-height: 100%;
+}
+#nav li {
+	display: block;
+	list-style: none;
+	position: relative;
+	cursor: pointer;
+	border-top: 1px solid #ccc;
+}
+#nav li:first-child {
+	border-top: 0;
+}
+#nav a {
+	display: block;
+}
+* html #nav ul {
+	line-height: 0;
+}
+#nav li.hover {
+	background-color: white;
+}
+#goto_submit {
+	margin-left: 1em;
+	margin-top: 3px;
+}
+#west_gui {
+	position: absolute;
+	top: 30px;
+	left: 0px;
+}
+#protect_precision {
+	background-color: #626262;
+	color: white;
+	padding: 4px;
+	margin-bottom: 3px;
+	display: inline-block;
+}
+#protect_selection {
+	display: block;
+	text-decoration: underline;
+	color: white;
+	text-align: center;
+	cursor: pointer;
+}
+#protect_selection:hover {
+	color: #F3DB65;
+}
+#protect_selection:active {
+	color: #917c17;
+}
+#char_choice {
+	margin-left: 14px;
+}
+.protect_button {
+	border: solid 1px white;
+	text-align: center;
+	cursor: pointer;
+	min-width: 40px;
+	display: inline-block;
+}
+.auto_prog_panel {
+	width: 150px;
+	height: 30px;
+	background-color: rgb(104, 104, 104);
+	text-align: center;
+	color: white;
+}
+#chat_open {
+	position: absolute;
+	bottom: 0px;
+	left: 0px;
+	width: 68px;
+	text-align: center;
+	height: 18px;
+	cursor: default;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+#chat_open:hover {
+	background-color: #CCCCFF;
+}
+#chat_open:active {
+	color: white;
+	background-color: #B2B2FF;
+}
+#usr_online {
+	padding-left: 16px;
+	display: inline-block;
+	cursor: default;
+	user-select: none;
+}
+#chatsend {
+	padding: 1px 6px 1px 6px;
+}
+.chat_tab_button {
+	height: 20px;
+	border: solid 1px #6c6c6c;
+	border-radius: 2px;
+	text-align: center;
+	font-family: 'Braille Octant Mono 2.4', Verdana, sans-serif;
+	font-size: 13px;
+	cursor: default;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 3px;
+}
+.chat_tab_selected {
+	background-color: #8C8C8C;
+	color: white;
+}
+.chatfield {
+	border: solid 1px #6c6c6c;
+	border-radius: 2px;
+	background-color: white;
+	overflow: scroll;
+	overflow-x: hidden;
+	overflow-wrap: break-word;
+	margin: 3px;
+	margin-bottom: 0px;
+	height: 100%;
+	padding: 2px;
+	contain: strict;
+}
+.chatfield > div {
+	overflow: hidden;
+}
+.unread_bar {
+	background-color: red;
+	width: 100%;
+	height: 2px;
+	margin-top: 6px;
+	margin-bottom: 6px;
+	text-align: center;
+}
+.unread_bar_msg {
+	background-color: white;
+	position: relative;
+	top: -8px;
+	padding-left: 3px;
+	padding-right: 3px;
+	font-family: 'Braille Octant Mono 2.4', Verdana, sans-serif;
+	font-size: 0.7em;
+	color: red;
+}
+.unread {
+	margin-left: 4px;
+	color: red;
+	font-size: 11px;
+}
+#total_unread {
+	font-weight: bold;
+	color: gray;
+}
+#chat_window {
+	position: absolute;
+	background-color: #e0e0e0;
+	border: solid 1px #404040;
+	border-radius: 2px;
+	display: flex;
+	flex-flow: column;
+}
+#chat_close {
+	float: right;
+}
+.close_button {
+	background-color: red;
+	width: 20px;
+	height: 20px;
+	text-align: center;
+	color: white;
+	border: solid 1px #830000;
+	border-radius: 2px;
+	font-family: monospace;
+	font-size: 16px;
+	cursor: default;
+}
+#confirm_js {
+	width: 441px;
+	height: 256px;
+	position: absolute;
+	background-color: #dbdbdb;
+	border-width: 2px;
+	border-style: solid;
+	border-color: black;
+}
+#confirm_js_code {
+	background-color: #e6e6e6;
+	position: absolute;
+	width: 365px;
+	height: 110px;
+	top: 90px;
+	left: 35px;
+	padding: 3px;
+	font-family: "Courier New", monospace;
+	word-wrap: break-word;
+	word-break: break-all;
+	overflow: scroll;
+	overflow-x: hidden;
+}
+#confirm_js_cancel {
+	position: absolute;
+	font-family: Helvetica;
+	background-color: #7c7c7c;
+	border-style: solid;
+	width: 80px;
+	height: 17px;
+	top: 220px;
+	left: 340px;
+	border-width: 1px;
+	padding: 2px;
+	text-align: center;
+	font-size: 15px;
+	color: white;
+	border-color: black;
+	cursor: pointer;
+}
+#confirm_js_cancel_x {
+	background-color: red;
+	width: 20px;
+	height: 20px;
+	position: absolute;
+	right: 3px;
+	top: 2px;
+	text-align: center;
+	color: white;
+	font-family: monospace;
+	font-size: 16px;
+	border-style: solid;
+	border-width: 1px;
+	border-color: black;
+	cursor: pointer;
+}
+#confirm_js_msg {
+	text-align: center;
+	position: absolute;
+	left: 20px;
+	font-family: 'Braille Octant Mono 2.4', verdana, sans-serif;
+	top: 40px;
+}
+#confirm_js_cancel:hover {
+	background-color: #979797;
+}
+#run_js_confirm {
+	position: absolute;
+	color: blue;
+	text-decoration: underline;
+	top: 220px;
+	left: 20px;
+}
+#confirm_js_copy {
+	position: absolute;
+	color: blue;
+	text-decoration: underline;
+	top: 220px;
+	left: 280px;
+}
+.region_selection {
+	position: absolute;
+	border: 1px solid black;
+	pointer-events: none;
+	box-sizing: border-box;
+}
+.mobile_selection_handle {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background-color: navy;
+	position: absolute;
+}
+#area_results {
+	width: 100%;
+	height: 200px;
+	white-space: pre;
+	overflow: auto;
+	overflow-x: scroll;
+}
+#link_element {
+	position: absolute;
+	display: block;
+}
+#textwall {
+	background-image: url("/static/unloaded.png");
+	background-repeat: repeat;
+}
+#textwall.nightmode {
+	background-image: url("/static/unloaded_night.png");
+}
+#zoombar {
+	width: 100%;
+}
+.color_btn {
+	background-color: black;
+	width: 16px;
+	height: 16px;
+	border-radius: 4px;
+	border: solid 1px black;
+	display: inline-block;
+	font-weight: bold;
+	font-family: 'Braille Octant Mono 2.4', verdana, sans-serif;
+	text-align: center;
+	cursor: default;
+	font-size: 0.8em;
+	overflow: hidden;
+	margin: 3px;
+	user-select: none;
+	vertical-align: top;
+}
+.color_btn:hover {
+	border-color: orange;
+}
+.color_btn:active {
+	border-color: rgb(165, 107, 0);
+}
+.color_btn_no_cell {
+	background: linear-gradient(to right top, white 47.75%, red 49.5%, red 55%, white 50%);
+}
+.worldtools-wtw-datatable {
+	border-collapse: collapse;
+}
+.worldtools-wtw-datatable td:not(:first-child),th:not(:first-child) {
+	border-left: solid 1px #b7b7b7;
+}
+.worldtools-wtw-datatable thead {
+	border-bottom: solid 1px #b7b7b7;
+	background-color: #c9c9c9;
+}
+.modal_corner_checkbox_label {
+	margin-left: 5px;
+	user-select: none;
+	white-space: nowrap;
+}
+#modal_overlay {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 100%;
+	height: 100%;
+	cursor: default;
+	background-color: rgba(0, 0, 0, 0.5);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+}
+.modal_close {
+	position: absolute;
+	right: 0px;
+	bottom: 0px;
+	margin-right: 8px;
+	margin-bottom: 8px;
+	color: blue;
+	text-decoration: underline;
+	cursor: pointer
+}
+.modal_frame {
+	background-color: #C3C3FF;
+}
+.modal_client {
+	background-color: #E5E5FF;
+}
+.modal-tab-btn {
+	background-color: rgb(178 178 231);
+}
+.modal-tab-btn:hover {
+	background-color: rgb(212 212 235);
+}
+.tooltip {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	background-color: #243030;
+	color: white;
+	font-family: 'Braille Octant Mono 2.4', Verdana, Arial, sans-serif;
+	font-size: 0.8em;
+	border: solid 1px #ff6363;
+	padding: 4px 7px 4px 7px;
+	pointer-events: none;
+	max-width: 90%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.chat_emote {
+	background: url(/static/emotes.png);
+	background-size: auto 400%;
+	height: 16px;
+	vertical-align: middle;
+	display: inline-block;
+}
+#erase_region {
+	background-color: #E5E5FF;
+	padding: 3px;
+	margin-bottom: 3px;
+	font-family: 'Braille Octant Mono 2.4', Verdana, Arial, sans-serif;
+	font-size: 12px;
+}
+#erase_region_cancel {
+	display: block;
+	text-decoration: underline;
+	color: blue;
+	text-align: center;
+	cursor: pointer;
+}
+#erase_region_cancel:hover {
+	color: #F3DB65;
+}
+#erase_region_cancel:active {
+	color: #917c17;
+}
+#text_decorations {
+	background-color: #E5E5FF;
+	padding: 3px;
+	margin-bottom: 3px;
+	display: inline-flex;
+}
+.text_deco_btn {
+	width: 32px;
+	height: 32px;
+	text-align: center;
+	display: inline-block;
+	font-size: 28px;
+	user-select: none;
+	font-family: 'Braille Octant Mono 2.4', Arial, Verdana, sans-serif;
+}
+.text_deco_btn:hover {
+	background-color: #CDCDFF;
+}
+#text_deco_b {
+	font-weight: bold;
+}
+#text_deco_i {
+	font-style: italic;
+}
+#text_deco_u {
+	text-decoration: underline;
+}
+#text_deco_s {
+	text-decoration: line-through;
+}
+.menuPin {
+	width: 12px;
+	height: 12px;
+}
+.longpress-container {
+	width: 100%;
+	position: absolute;
+	bottom: 22px;
+	text-align: center;
+	pointer-events: none;
+}
+.longpress-options {
+	background-color: #E5E5FF;
+	padding: 5px;
+	display: inline-block;
+	pointer-events: auto;
+	cursor: default;
+	user-select: none;
+}
+.longpress-option {
+	display: table-cell;
+	color: black;
+	padding: 5px;
+	font-family: 'Braille Octant Mono 2.4', Verdana, Arial, sans-serif;
+	vertical-align: middle;
+	user-select: none;
+}
+.longpress-close {
+	font-size: 2em;
+}
+.longpress-option:not(:last-child) {
+	border-right: solid 1px #a7a7a7;
+}
+.longpress-option:active {
+	background-color: #CDCDFF;
+}
+</style>
