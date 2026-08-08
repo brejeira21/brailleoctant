@@ -10950,20 +10950,85 @@ client_commands.gridsize(["10x20"]);
 })();
 </script>
 <script>
-cyrb128 = t => {
-    let e = 1779033703, i = 3144134277, l = 1013904242, a = 2773480762;
-    for (let r, h = 0; h < t.length; h++) r = t.charCodeAt(h), e = i ^ Math.imul(e ^ r, 597399067), i = l ^ Math.imul(i ^ r, 2869860233), l = a ^ Math.imul(l ^ r, 951274213), a = e ^ Math.imul(a ^ r, 2716044179);
-    return e = Math.imul(l ^ e >>> 18, 597399067), i = Math.imul(a ^ i >>> 22, 2869860233), l = Math.imul(e ^ l >>> 17, 951274213), a = Math.imul(i ^ a >>> 19, 2716044179), [(e ^ i ^ l ^ a) >>> 0, (i ^ e) >>> 0, (l ^ e) >>> 0, (a ^ e) >>> 0]
+// Named teleportation locations storage
+var teleportLocations = {};
+
+// Cyrb128 hash function for seed generation
+const cyrb128 = t => {
+	let e = 1779033703, i = 3144134277, l = 1013904242, a = 2773480762;
+	for (let r, h = 0; h < t.length; h++) r = t.charCodeAt(h), e = i ^ Math.imul(e ^ r, 597399067), i = l ^ Math.imul(i ^ r, 2869860233), l = a ^ Math.imul(l ^ r, 951274213), a = e ^ Math.imul(a ^ r, 2716044179);
+	return e = Math.imul(l ^ e >>> 18, 597399067), i = Math.imul(a ^ i >>> 22, 2869860233), l = Math.imul(e ^ l >>> 17, 951274213), a = Math.imul(i ^ a >>> 19, 2716044179), [(e ^ i ^ l ^ a) >>> 0, (i ^ e) >>> 0, (l ^ e) >>> 0, (a ^ e) >>> 0]
 };
-menu.addOption("Seed Teleport", (t => {
-    seed = cyrb128(prompt("Teleport to"));
-    
-    // X and Y coordinates are rounded to the nearest integer cell using Math.round()
-    w.doGoToCoord(
-        Math.round(seed[1] / (144 * 4 * 2)), 
-        Math.round(-seed[0] / (160 * 4 * 2))
-    );
-}));
+
+// Function to save teleport location with a name
+function saveTeleportLocation(locationName) {
+	const currentCoordsDisplay = "Coordinates: X=" + (cursorCoordsCurrent[0] || 0) + ", Y=" + (cursorCoordsCurrent[1] || 0);
+	const seedData = cyrb128(locationName);
+	teleportLocations[locationName] = {
+		name: locationName,
+		seed: seedData,
+		coords: [cursorCoordsCurrent[0] || 0, cursorCoordsCurrent[1] || 0],
+		display: currentCoordsDisplay
+	};
+	console.log("Saved teleport location: " + locationName);
+	alert("Location '" + locationName + "' saved successfully!");
+}
+
+// Function to teleport to a saved named location
+function teleportToLocation(locationName) {
+	if (!teleportLocations[locationName]) {
+		alert("Location '" + locationName + "' not found!");
+		return;
+	}
+	
+	const location = teleportLocations[locationName];
+	const seed = location.seed;
+	
+	// X and Y coordinates are rounded to the nearest integer cell using Math.round()
+	w.doGoToCoord(
+		Math.round(seed[1] / (144 * 4 * 2)), 
+		Math.round(-seed[0] / (160 * 4 * 2))
+	);
+	
+	console.log("Teleported to: " + locationName);
+	alert("Teleported to: " + locationName);
+}
+
+// Add menu option to save current location
+if (menu && typeof menu.addOption === 'function') {
+	menu.addOption("Save Location", function() {
+		const locationName = prompt("Enter name for this location:");
+		if (locationName && locationName.trim() !== "") {
+			saveTeleportLocation(locationName.trim());
+		}
+	});
+
+	// Add menu option to teleport to saved location
+	menu.addOption("Teleport to Location", function() {
+		const savedLocations = Object.keys(teleportLocations);
+		if (savedLocations.length === 0) {
+			alert("No saved locations yet! Use 'Save Location' first.");
+			return;
+		}
+		
+		const locationName = prompt("Enter location name:\n\nSaved locations:\n/ " + savedLocations.join("\n/ "));
+		if (locationName && locationName.trim() !== "") {
+			teleportToLocation(locationName.trim());
+		}
+	});
+
+	// Original Seed Teleport option
+	menu.addOption("Seed Teleport", function() {
+		const seedName = prompt("Teleport to (enter location name or text):");
+		if (seedName && seedName.trim() !== "") {
+			const seed = cyrb128(seedName);
+			w.doGoToCoord(
+				Math.round(seed[1] / (144 * 4 * 2)), 
+				Math.round(-seed[0] / (160 * 4 * 2))
+			);
+		}
+	});
+}
 </script>
 <script>
 nav.style.top = "26px";
